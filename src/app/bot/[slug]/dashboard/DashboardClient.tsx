@@ -3,7 +3,15 @@
     import { useState } from "react";
     import { useRouter } from "next/navigation";
     import { Button } from "@/components/ui/button";
-    import { ArrowLeft, RefreshCw } from "lucide-react";
+    import { ArrowLeft, RefreshCw, Trash2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
     import { StatsCards } from "@/components/dashboard/StatsCards";
     import { EmotionChart } from "@/components/dashboard/EmotionChart";
     import { KeywordCloud } from "@/components/dashboard/KeywordCloud";
@@ -20,6 +28,21 @@
       const router = useRouter();
       const [stats, setStats] = useState<AnalyticsStats | null>(initialStats);
       const [loading, setLoading] = useState(false);
+      const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+      const [deleting, setDeleting] = useState(false);
+
+      const handleDelete = async () => {
+        if (deleting) return;
+        setDeleting(true);
+        try {
+          const res = await fetch(`/api/bots?id=${botId}`, { method: "DELETE" });
+          if (res.ok) {
+            router.push("/chat");
+          }
+        } catch {
+          setDeleting(false);
+        }
+      };
 
       const refresh = async () => {
         setLoading(true);
@@ -52,10 +75,21 @@
                   </p>
                 </div>
               </div>
-              <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
-                <RefreshCw className={`w-4 h-4 mr-1 ${loading ? "animate-spin" : ""}`} />
-                刷新
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDeleteDialog(true)}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  删除 Bot
+                </Button>
+                <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
+                  <RefreshCw className={`w-4 h-4 mr-1 ${loading ? "animate-spin" : ""}`} />
+                  刷新
+                </Button>
+              </div>
             </div>
 
             {loading ? (
@@ -93,6 +127,34 @@
               </>
             )}
           </div>
+
+        {/* 删除确认弹窗 */}
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>确认删除</DialogTitle>
+              <DialogDescription>
+                确定要删除「{botName}」吗？此操作不可撤销，所有对话记录和关联数据将被永久删除。
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <button
+                className="px-3 py-1.5 text-sm rounded-md border hover:bg-muted"
+                onClick={() => setShowDeleteDialog(false)}
+                disabled={deleting}
+              >
+                取消
+              </button>
+              <button
+                className="px-3 py-1.5 text-sm rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? "删除中..." : "确认删除"}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         </div>
       );
     }

@@ -8,7 +8,15 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, Plus, Sparkles, Store } from "lucide-react";
+import { LogOut, Plus, Sparkles, Store, Trash2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type BotCategory = "private" | "specific" | "relatedPublic";
 
@@ -27,6 +35,8 @@ export default function ChatPage() {
   const [allBots, setAllBots] = useState<Bot[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<BotCategory>("specific");
+  const [deleteTarget, setDeleteTarget] = useState<Bot | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const router = useRouter();
 
   const loadBots = useCallback(async () => {
@@ -50,6 +60,21 @@ export default function ChatPage() {
     }
     loadBots();
   }, [user, authLoading, router, loadBots]);
+
+  const handleDelete = async () => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/bots?id=${deleteTarget.id}`, { method: "DELETE" });
+      if (res.ok) {
+        setAllBots((prev) => prev.filter((b) => b.id !== deleteTarget.id));
+      }
+    } catch {
+      // 删除失败，静默处理
+    }
+    setDeleting(false);
+    setDeleteTarget(null);
+  };
 
   // 分组
   const privateBots = allBots.filter(
@@ -179,7 +204,7 @@ export default function ChatPage() {
                   </p>
                 )}
                 {bot.creator_id === user?.id && (
-                  <div className="mt-2 flex justify-end">
+                  <div className="mt-2 flex justify-end items-center gap-3">
                     <span
                       className="text-xs text-primary hover:underline"
                       onClick={(e) => {
@@ -189,6 +214,16 @@ export default function ChatPage() {
                     >
                       📊 仪表盘
                     </span>
+                    <button
+                      className="text-xs text-red-500 hover:text-red-700 flex items-center gap-0.5"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(bot);
+                      }}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      删除
+                    </button>
                   </div>
                 )}
               </Card>
@@ -196,6 +231,34 @@ export default function ChatPage() {
           </div>
         )}
       </div>
+
+      {/* 删除确认弹窗 */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认删除</DialogTitle>
+            <DialogDescription>
+              确定要删除「{deleteTarget?.name}」吗？此操作不可撤销，所有对话记录和关联数据将被永久删除。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              className="px-3 py-1.5 text-sm rounded-md border hover:bg-muted"
+              onClick={() => setDeleteTarget(null)}
+              disabled={deleting}
+            >
+              取消
+            </button>
+            <button
+              className="px-3 py-1.5 text-sm rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? "删除中..." : "确认删除"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

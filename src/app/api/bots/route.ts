@@ -168,3 +168,44 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const botId = searchParams.get("id");
+
+  if (!botId) {
+    return NextResponse.json({ error: "Missing bot id" }, { status: 400 });
+  }
+
+  const routeClient = createRouteClient(req);
+  const { data: authData } = await routeClient.auth.getUser();
+  const user = authData?.user;
+  if (!user) {
+    return NextResponse.json({ error: "请先登录" }, { status: 401 });
+  }
+
+  const supabase = createServiceClient();
+
+  // 验证创建者身份
+  const { data: bot } = await supabase
+    .from("bots")
+    .select("creator_id")
+    .eq("id", botId)
+    .single();
+
+  if (!bot) {
+    return NextResponse.json({ error: "Bot 不存在" }, { status: 404 });
+  }
+  if (bot.creator_id !== user.id) {
+    return NextResponse.json({ error: "无权删除" }, { status: 403 });
+  }
+
+  const { error } = await supabase.from("bots").delete().eq("id", botId);
+
+  if (error) {
+    console.error("[DELETE /api/bots] error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}
