@@ -1,6 +1,6 @@
 # 许小熊 Bot
 
-个性化 AI 伙伴创建与对话平台。用户可以创建定制 AI Bot（配置人格、语气、类别、纪念日、爱好等），选择公开/私人/指定用户分享，通过智谱 GLM 模型与 Bot 实时对话。支持 Bot 记忆功能，每个用户可以为自己使用的 Bot 单独记录备忘信息。
+个性化 AI 伙伴创建与对话平台。用户可以创建定制 AI Bot（配置人格、语气、类别、纪念日、爱好等），选择公开/私人/指定用户分享，通过智谱 GLM 模型与 Bot 实时对话。支持 Bot 记忆功能和对话上下文记忆，刷新页面或重新打开后自动恢复历史对话。
 
 ## 技术栈
 
@@ -101,12 +101,22 @@ src/
 
 ## Bot 记忆
 
+### 手动记忆
+
 每个用户可以对使用的 Bot 设置独立的记忆备注，Bot 会在对话中自然引用。记忆按 `user_id + bot_id` 隔离，互不影响。
 
 - 对话页顶部点 📖 图标展开记忆编辑框
 - 输入生日、爱好、重要事件等信息
 - 保存后 Bot 立即在对话中生效
 - 底层 system prompt 不受影响，记忆仅作为追加上下文
+
+### 自动记忆（Function Calling）
+
+Bot 会在对话中自动识别值得记住的用户信息（如生日、喜好、经历等），通过 `save_memory` function calling 写入数据库。下次对话时这些信息会自动注入 system prompt。
+
+### 对话上下文记忆
+
+每次对话的消息历史会自动保存到数据库。刷新页面或关闭后重新打开同一个 Bot 的对话窗口，会自动加载最近 50 条历史消息，恢复完整上下文，让 Bot 记住你们聊过什么。
 
 ## API 路由
 
@@ -118,6 +128,7 @@ src/
 | `/api/bots/relation` | GET | 读取用户对某 Bot 的记忆 | Cookie Session |
 | `/api/bots/relation` | PATCH | 更新用户对某 Bot 的记忆 | Cookie Session |
 | `/api/bots/relation` | POST | 建立用户-Bot 关联（首次对话） | Cookie Session |
+| `/api/chat` | GET | 获取历史消息（恢复对话上下文） | Cookie Session |
 | `/api/chat` | POST | SSE 流式对话 | Cookie Session |
 
 ## 本地开发
